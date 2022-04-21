@@ -84,7 +84,7 @@ def callback_depth(data):
     depth_img = depth_array.astype('uint8')
     depth_ready = True
 
-    img = cv2.cvtColor(depth_img, cv2.COLOR_GRAY2BGR)
+    img = cv2.cvtColor(depth_img.copy(), cv2.COLOR_GRAY2BGR)
     kernel = np.ones((3,3), np.uint8)
     img_dilation = cv2.dilate(img, kernel, iterations=5)
     img_erosion = cv2.erode(img_dilation, kernel, iterations=2)
@@ -92,9 +92,12 @@ def callback_depth(data):
     edges = cv2.Canny(img,100,200)
     edge_dilate = cv2.dilate(edges, kernel, iterations=6)
     edge_dilate = cv2.bitwise_not(edge_dilate)
-    minus_edges = cv2.bitwise_and(img_erosion,img_erosion,mask=edge_dilate)
+    depth_img = cv2.bitwise_and(img_erosion,img_erosion,mask=edge_dilate)
 
-    depth_img = minus_edges
+    depth_img = depth_img.astype('uint8')
+    #(x,y) = depth_img.shape
+    #print(x)
+    #print(y)
 
     #TODO: Multiply depth mask to rgb image, restrict view to top level
     #TODO: Establish perimeter outside brick stack to ignore
@@ -110,7 +113,7 @@ def callback_depth(data):
     #cv2.waitKey(3)
 
     #plt.imshow(img_erosion,cmap='gray', vmin=0, vmax=255)
-    plt.imshow(minus_edges,cmap='gray', vmin=0, vmax=255)
+    plt.imshow(depth_img,cmap='gray', vmin=0, vmax=255)
     plt.show()
 
     #pix = (data.width/2, data.height/2)
@@ -124,7 +127,10 @@ def callback_img(data):
     try:
         cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
         cv_image = cv_image[100:650, 640:]
-        #cv_image = cv2.bitwise_and(cv_image,cv_image,mask=depth_img)
+        (rows,cols) = depth_img.shape
+        print(rows)
+        print(cols)
+        cv_image = cv2.bitwise_and(cv_image,cv_image,mask=depth_img)
     except CvBridgeError as e:
       print(e)
 
@@ -156,11 +162,11 @@ def callback_img(data):
     #cv2.imshow("BLUE HSV_Thresholding", blue_disp_image_HSV)
     yellow_disp_image_HSV = cv2.bitwise_and(cv_image,cv_image, mask= yellow_mask_HSV)
 
-    cv2.imshow("YELLOW HSV_Thresholding", yellow_disp_image_HSV)
+    cv2.imshow("YELLOW HSV_Thresholding", blue_disp_image_HSV)
     cv2.waitKey()
 
     # convert the image to grayscale
-    img = yellow_disp_image_HSV
+    img = blue_disp_image_HSV
 
     
     edges = cv2.Canny(cv_image,100,200)
@@ -176,7 +182,7 @@ def callback_img(data):
     #img = img_dilation
     
     # Detect points that form a line
-    lines = cv2.HoughLinesP(edges,rho = 1,theta = 1*np.pi/180,threshold = 100,minLineLength = 120,maxLineGap = 5)
+    lines = cv2.HoughLinesP(edges,rho = 1,theta = 1*np.pi/180,threshold = 100,minLineLength = 100,maxLineGap = 10)
     # Draw lines on the image
     for line in lines:
       x1, y1, x2, y2 = line[0]
